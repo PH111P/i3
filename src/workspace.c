@@ -572,6 +572,72 @@ void workspace_show_by_name(const char *num) {
     workspace_show(workspace);
 }
 
+
+/*
+ * Compares two names using the natural order.
+ *
+ */
+int name_comp(const void *lh, const void *rh) {
+    const char *lhs = (const char*) lh;
+    const char *rhs = (const char*) rh;
+
+    bool is_str = true;
+    int tmp_res = 0;
+
+#define DIGIT(c) ((c) >= '0' && (c) <= '9')
+    while (*lhs && *rhs) {
+        bool l_is_digit = DIGIT(*lhs);
+        bool r_is_digit = DIGIT(*rhs);
+
+        int cur_val = (*lhs > *rhs) - (*lhs < *rhs);
+
+        if (is_str && l_is_digit && r_is_digit) {
+            is_str = false;
+            tmp_res = 0;
+            while ((*lhs) == '0') ++lhs; // munch leading zeros
+            while ((*rhs) == '0') ++rhs; // munch leading zeros
+            continue;
+        }
+        if (!is_str && !l_is_digit && !r_is_digit) {
+            is_str = true;
+            if (tmp_res) return tmp_res; // numbers had the same length, so ascii cmp works
+            continue;
+        }
+
+        if (is_str) {
+            if (l_is_digit) return -1;
+            if (r_is_digit) return  1;
+
+            if (cur_val) return cur_val; // alpha chars differ
+
+            ++lhs; ++rhs;
+            continue;
+        } else {
+            if (!l_is_digit) return -1;
+            if (!r_is_digit) return 1;
+
+            if (!tmp_res) tmp_res = cur_val;
+            ++lhs; ++rhs;
+            continue;
+        }
+    }
+
+    if (*rhs) return -1;
+    if (*lhs) return  1;
+    return 0;
+#undef DIGIT
+}
+
+/*
+ * Naural order, reversed.
+ *
+ */
+int name_comp_rev(const void *lhs, const void *rhs) {
+    return name_comp(rhs, lhs);
+}
+
+
+
 /*
  * Focuses the next workspace.
  *
@@ -707,53 +773,35 @@ Con *workspace_prev(void) {
  */
 Con *workspace_next_on_output(void) {
     Con *current = con_get_workspace(focused);
-    Con *next = NULL;
     Con *output = con_get_output(focused);
 
-    if (current->num == -1) {
-        /* If currently a named workspace, find next named workspace. */
-        next = TAILQ_NEXT(current, nodes);
-    } else {
-        /* If currently a numbered workspace, find next numbered workspace. */
-        NODES_FOREACH(output_get_content(output)) {
-            if (child->type != CT_WORKSPACE)
-                continue;
-            if (child->num == -1)
-                break;
-            /* Need to check child against current and next because we are
-             * traversing multiple lists and thus are not guaranteed the
-             * relative order between the list of workspaces. */
-            if (current->num < child->num && (!next || child->num < next->num))
-                next = child;
-        }
-    }
-
     /* Find next named workspace. */
-    if (!next) {
-        bool found_current = false;
-        NODES_FOREACH(output_get_content(output)) {
-            if (child->type != CT_WORKSPACE)
-                continue;
-            if (child == current) {
-                found_current = true;
-            } else if (child->num == -1 && (current->num != -1 || found_current)) {
-                next = child;
-                goto workspace_next_on_output_end;
-            }
+    /* Obtain all workspace names and sort them, then pick the one after
+     * the current workspace. */
+    size_t num_ws = 0;
+    NODES_FOREACH(output_get_content(output)) {
+        if (child->type != CT_WORKSPACE)
+            continue;
+        num_ws++;
+    }
+    char** names = smalloc(num_ws * sizeof(char*));
+    int i = 0;
+    NODES_FOREACH(output_get_content(output)) {
+        if (child->type != CT_WORKSPACE)
+            continue;
+        names[i++] = child->name;
+    }
+
+    qsort(names, num_ws, sizeof(char*), name_comp);
+    int new_idx = 0;
+    for (int i = 0; i < num_ws; ++i) {
+        if (!strcasecmp(names[i], current->name)) {
+            new_idx = (i + 1) % num_ws;
+            break;
         }
     }
 
-    /* Find first workspace. */
-    if (!next) {
-        NODES_FOREACH(output_get_content(output)) {
-            if (child->type != CT_WORKSPACE)
-                continue;
-            if (!next || (child->num != -1 && child->num < next->num))
-                next = child;
-        }
-    }
-workspace_next_on_output_end:
-    return next;
+    return get_existing_workspace_by_name(names[new_idx]);
 }
 
 /*
@@ -762,55 +810,36 @@ workspace_next_on_output_end:
  */
 Con *workspace_prev_on_output(void) {
     Con *current = con_get_workspace(focused);
-    Con *prev = NULL;
     Con *output = con_get_output(focused);
     DLOG("output = %s\n", output->name);
 
-    if (current->num == -1) {
-        /* If named workspace, find previous named workspace. */
-        prev = TAILQ_PREV(current, nodes_head, nodes);
-        if (prev && prev->num != -1)
-            prev = NULL;
-    } else {
-        /* If numbered workspace, find previous numbered workspace. */
-        NODES_FOREACH_REVERSE(output_get_content(output)) {
-            if (child->type != CT_WORKSPACE || child->num == -1)
-                continue;
-            /* Need to check child against current and previous because we
-             * are traversing multiple lists and thus are not guaranteed
-             * the relative order between the list of workspaces. */
-            if (current->num > child->num && (!prev || child->num > prev->num))
-                prev = child;
-        }
-    }
-
     /* Find previous named workspace. */
-    if (!prev) {
-        bool found_current = false;
-        NODES_FOREACH_REVERSE(output_get_content(output)) {
-            if (child->type != CT_WORKSPACE)
-                continue;
-            if (child == current) {
-                found_current = true;
-            } else if (child->num == -1 && (current->num != -1 || found_current)) {
-                prev = child;
-                goto workspace_prev_on_output_end;
-            }
+    /* Obtain all workspace names and sort them, then pick the one after
+     * the current workspace. */
+    size_t num_ws = 0;
+    NODES_FOREACH(output_get_content(output)) {
+        if (child->type != CT_WORKSPACE)
+            continue;
+        num_ws++;
+    }
+    char** names = smalloc(num_ws * sizeof(char*));
+    int i = 0;
+    NODES_FOREACH(output_get_content(output)) {
+        if (child->type != CT_WORKSPACE)
+            continue;
+        names[i++] = child->name;
+    }
+
+    qsort(names, num_ws, sizeof(char*), name_comp_rev);
+    int new_idx = 0;
+    for (int i = 0; i < num_ws; ++i) {
+        if (!strcasecmp(names[i], current->name)) {
+            new_idx = (i + 1) % num_ws;
+            break;
         }
     }
 
-    /* Find last workspace. */
-    if (!prev) {
-        NODES_FOREACH_REVERSE(output_get_content(output)) {
-            if (child->type != CT_WORKSPACE)
-                continue;
-            if (!prev || child->num > prev->num)
-                prev = child;
-        }
-    }
-
-workspace_prev_on_output_end:
-    return prev;
+    return get_existing_workspace_by_name(names[new_idx]);
 }
 
 /*
