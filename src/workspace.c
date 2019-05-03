@@ -578,8 +578,8 @@ void workspace_show_by_name(const char *num) {
  *
  */
 int name_comp(const void *lh, const void *rh) {
-    const char *lhs = (const char*) lh;
-    const char *rhs = (const char*) rh;
+    const char *lhs = *(const char**) lh;
+    const char *rhs = *(const char**) rh;
 
     bool is_str = true;
     int tmp_res = 0;
@@ -589,7 +589,7 @@ int name_comp(const void *lh, const void *rh) {
         bool l_is_digit = DIGIT(*lhs);
         bool r_is_digit = DIGIT(*rhs);
 
-        int cur_val = (*lhs > *rhs) - (*lhs < *rhs);
+        int cur_val = strncmp(lhs, rhs, 1);
 
         if (is_str && l_is_digit && r_is_digit) {
             is_str = false;
@@ -627,16 +627,6 @@ int name_comp(const void *lh, const void *rh) {
     return 0;
 #undef DIGIT
 }
-
-/*
- * Naural order, reversed.
- *
- */
-int name_comp_rev(const void *lhs, const void *rhs) {
-    return name_comp(rhs, lhs);
-}
-
-
 
 /*
  * Focuses the next workspace.
@@ -801,7 +791,9 @@ Con *workspace_next_on_output(void) {
         }
     }
 
-    return get_existing_workspace_by_name(names[new_idx]);
+    Con *res = get_existing_workspace_by_name(names[new_idx]);
+    free(names);
+    return res;
 }
 
 /*
@@ -811,7 +803,7 @@ Con *workspace_next_on_output(void) {
 Con *workspace_prev_on_output(void) {
     Con *current = con_get_workspace(focused);
     Con *output = con_get_output(focused);
-    DLOG("output = %s\n", output->name);
+    DLOG("output = %s, current = %s\n", output->name, current->name);
 
     /* Find previous named workspace. */
     /* Obtain all workspace names and sort them, then pick the one after
@@ -824,22 +816,30 @@ Con *workspace_prev_on_output(void) {
     }
     char** names = smalloc(num_ws * sizeof(char*));
     int i = 0;
+    DLOG("Before Sorting\n");
     NODES_FOREACH(output_get_content(output)) {
         if (child->type != CT_WORKSPACE)
             continue;
+        DLOG("names[%d] = %s\n", i, child->name);
         names[i++] = child->name;
     }
 
-    qsort(names, num_ws, sizeof(char*), name_comp_rev);
+    qsort(names, num_ws, sizeof(char*), name_comp);
+    DLOG("SORTING DONE\n");
     int new_idx = 0;
     for (int i = 0; i < num_ws; ++i) {
+        DLOG("names[%d] = %s\n", i, names[i]);
+    }
+    for (int i = 0; i < num_ws; ++i) {
         if (!strcasecmp(names[i], current->name)) {
-            new_idx = (i + 1) % num_ws;
+            new_idx = (i + num_ws - 1) % num_ws;
             break;
         }
     }
 
-    return get_existing_workspace_by_name(names[new_idx]);
+    Con *res = get_existing_workspace_by_name(names[new_idx]);
+    free(names);
+    return res;
 }
 
 /*
