@@ -624,6 +624,7 @@ int name_comp(const void *lh, const void *rh) {
 
     if (*rhs) return -1;
     if (*lhs) return  1;
+    if (!is_str) return tmp_res;
     return 0;
 #undef DIGIT
 }
