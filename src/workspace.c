@@ -675,7 +675,7 @@ Con *workspace_next(void) {
     }
 
     Con *res = get_existing_workspace_by_name(names[new_idx]);
-    free(names);
+    FREE(names);
     return res;
 }
 
@@ -725,7 +725,7 @@ Con *workspace_prev(void) {
     }
 
     Con *res = get_existing_workspace_by_name(names[new_idx]);
-    free(names);
+    FREE(names);
     return res;
 }
 
@@ -764,7 +764,7 @@ Con *workspace_next_on_output(void) {
     }
 
     Con *res = get_existing_workspace_by_name(names[new_idx]);
-    free(names);
+    FREE(names);
     return res;
 }
 
@@ -810,7 +810,7 @@ Con *workspace_prev_on_output(void) {
     }
 
     Con *res = get_existing_workspace_by_name(names[new_idx]);
-    free(names);
+    FREE(names);
     return res;
 }
 
