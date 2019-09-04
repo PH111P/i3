@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <float.h>
 #include <stdarg.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "shmlog.h"
 
@@ -467,7 +469,7 @@ static void cmd_resize_floating(I3_CMD, const char *way, const char *direction_s
 
     /* Did we actually resize anything or did the size constraints prevent us?
      * If we could not resize, exit now to not move the window. */
-    if (memcmp(&old_rect, &(floating_con->rect), sizeof(Rect)) == 0) {
+    if (rect_equals(old_rect, floating_con->rect)) {
         return;
     }
 
@@ -1590,15 +1592,27 @@ void cmd_reload(I3_CMD) {
  */
 void cmd_restart(I3_CMD) {
     LOG("restarting i3\n");
-    ipc_shutdown(SHUTDOWN_REASON_RESTART);
+    int exempt_fd = -1;
+    if (cmd_output->client != NULL) {
+        exempt_fd = cmd_output->client->fd;
+        LOG("Carrying file descriptor %d across restart\n", exempt_fd);
+        int flags;
+        if ((flags = fcntl(exempt_fd, F_GETFD)) < 0 ||
+            fcntl(exempt_fd, F_SETFD, flags & ~FD_CLOEXEC) < 0) {
+            ELOG("Could not disable FD_CLOEXEC on fd %d\n", exempt_fd);
+        }
+        char *fdstr = NULL;
+        sasprintf(&fdstr, "%d", exempt_fd);
+        setenv("_I3_RESTART_FD", fdstr, 1);
+    }
+    ipc_shutdown(SHUTDOWN_REASON_RESTART, exempt_fd);
     unlink(config.ipc_socket_path);
     /* We need to call this manually since atexit handlers don’t get called
      * when exec()ing */
     purge_zerobyte_logfile();
     i3_restart(false);
-
-    // XXX: default reply for now, make this a better reply
-    ysuccess(true);
+    /* unreached */
+    assert(false);
 }
 
 /*

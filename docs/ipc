@@ -139,6 +139,20 @@ The reply consists of a list of serialized maps for each command that was
 parsed. Each has the property +success (bool)+ and may also include a
 human-readable error message in the property +error (string)+.
 
+NOTE: When sending the `restart` command, you will get a singular reply once the
+restart completed. All IPC connection states (e.g. subscriptions) will reset and
+all but one socket will be closed. Libraries must be able to cope with this by
+aligning their internal states. It is also recommended that libraries close
+the last remaining socket(one which replied to `restart` command) to achieve
+the full reset.
+
+NOTE: It is easiest to always send the `restart` command alone: due to i3’s
+state reset, the reply messages of preceding commands are lost, and following
+commands will not be executed.
+
+NOTE: When processing the `exit` command, i3 will immediately exit without
+sending a reply. Expect the socket to be shut down.
+
 *Example:*
 -------------------
 [{ "success": true }]
@@ -771,7 +785,7 @@ This event consists of a single serialized map containing a property
 +change (string)+ which indicates the type of the change ("focus", "init",
 "empty", "urgent", "reload", "rename", "restored", "move"). A
 +current (object)+ property will be present with the affected workspace
-whenever the type of event affects a workspace (otherwise, it will be +null).
+whenever the type of event affects a workspace (otherwise, it will be +null+).
 
 When the change is "focus", an +old (object)+ property will be present with the
 previous workspace.  When the first switch occurs (when i3 focuses the
