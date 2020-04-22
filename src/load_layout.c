@@ -145,7 +145,7 @@ static int json_end_map(void *ctx) {
             if (rect_equals(json_node->rect, (Rect){0, 0, 0, 0})) {
                 DLOG("Geometry not set, combining children\n");
                 Con *child;
-                TAILQ_FOREACH(child, &(json_node->nodes_head), nodes) {
+                TAILQ_FOREACH (child, &(json_node->nodes_head), nodes) {
                     DLOG("child geometry: %d x %d\n", child->geometry.width, child->geometry.height);
                     json_node->rect.width += child->geometry.width;
                     json_node->rect.height = max(json_node->rect.height, child->geometry.height);
@@ -171,6 +171,19 @@ static int json_end_map(void *ctx) {
         con_attach(json_node, json_node->parent, true);
         LOG("Creating window\n");
         x_con_init(json_node);
+
+        /* Fix erroneous JSON input regarding floating containers to avoid
+         * crashing, see #3901. */
+        const int old_floating_mode = json_node->floating;
+        if (old_floating_mode >= FLOATING_AUTO_ON && json_node->parent->type != CT_FLOATING_CON) {
+            LOG("Fixing floating node without CT_FLOATING_CON parent\n");
+
+            /* Force floating_enable to work */
+            json_node->floating = FLOATING_AUTO_OFF;
+            floating_enable(json_node, false);
+            json_node->floating = old_floating_mode;
+        }
+
         json_node = json_node->parent;
         incomplete--;
         DLOG("incomplete = %d\n", incomplete);
@@ -206,10 +219,10 @@ static int json_end_array(void *ctx) {
     if (parsing_focus) {
         /* Clear the list of focus mappings */
         struct focus_mapping *mapping;
-        TAILQ_FOREACH_REVERSE(mapping, &focus_mappings, focus_mappings_head, focus_mappings) {
+        TAILQ_FOREACH_REVERSE (mapping, &focus_mappings, focus_mappings_head, focus_mappings) {
             LOG("focus (reverse) %d\n", mapping->old_id);
             Con *con;
-            TAILQ_FOREACH(con, &(json_node->focus_head), focused) {
+            TAILQ_FOREACH (con, &(json_node->focus_head), focused) {
                 if (con->old_id != mapping->old_id)
                     continue;
                 LOG("got it! %p\n", con);

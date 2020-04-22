@@ -12,13 +12,16 @@ use v5.10;
 use autodie;
 use lib 'testcases/lib';
 use i3test::Util qw(slurp);
-use Lintian::Check qw(check_spelling);
+use Lintian::Spelling qw(check_spelling);
 
 # Lintian complains if we don’t set a vendor.
 use Lintian::Data;
 use Lintian::Profile;
-Lintian::Data->set_vendor(
-    Lintian::Profile->new('debian', ['/usr/share/lintian'], {}));
+
+my $profile = Lintian::Profile->new;
+$profile->load('debian', ['/usr/share/lintian']);
+
+Lintian::Data->set_vendor($profile);
 
 my $exitcode = 0;
 

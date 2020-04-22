@@ -24,7 +24,7 @@ static Rect total_outputs_dimensions(void) {
     Output *output;
     /* Use Rect to encapsulate dimensions, ignoring x/y */
     Rect outputs_dimensions = {0, 0, 0, 0};
-    TAILQ_FOREACH(output, &outputs, outputs) {
+    TAILQ_FOREACH (output, &outputs, outputs) {
         outputs_dimensions.height += output->rect.height;
         outputs_dimensions.width += output->rect.width;
     }
@@ -39,7 +39,7 @@ static Rect total_outputs_dimensions(void) {
 static void floating_set_hint_atom(Con *con, bool floating) {
     if (!con_is_leaf(con)) {
         Con *child;
-        TAILQ_FOREACH(child, &(con->nodes_head), nodes) {
+        TAILQ_FOREACH (child, &(con->nodes_head), nodes) {
             floating_set_hint_atom(child, floating);
         }
     }
@@ -328,7 +328,7 @@ void floating_enable(Con *con, bool automatic) {
     if (rect_equals(nc->rect, (Rect){0, 0, 0, 0})) {
         DLOG("Geometry not set, combining children\n");
         Con *child;
-        TAILQ_FOREACH(child, &(con->nodes_head), nodes) {
+        TAILQ_FOREACH (child, &(con->nodes_head), nodes) {
             DLOG("child geometry: %d x %d\n", child->geometry.width, child->geometry.height);
             nc->rect.width += child->geometry.width;
             nc->rect.height = max(nc->rect.height, child->geometry.height);
@@ -514,9 +514,15 @@ bool floating_maybe_reassign_ws(Con *con) {
     Con *content = output_get_content(output->con);
     Con *ws = TAILQ_FIRST(&(content->focus_head));
     DLOG("Moving con %p / %s to workspace %p / %s\n", con, con->name, ws, ws->name);
+    Con *needs_focus = con_descend_focused(con);
+    if (!con_inside_focused(needs_focus)) {
+        needs_focus = NULL;
+    }
     con_move_to_workspace(con, ws, false, true, false);
-    workspace_show(ws);
-    con_activate(con_descend_focused(con));
+    if (needs_focus) {
+        workspace_show(ws);
+        con_activate(needs_focus);
+    }
     return true;
 }
 
@@ -745,16 +751,13 @@ bool floating_reposition(Con *con, Rect newrect) {
 
     con->rect = newrect;
 
-    bool reassigned = floating_maybe_reassign_ws(con);
+    floating_maybe_reassign_ws(con);
 
     /* If this is a scratchpad window, don't auto center it from now on. */
     if (con->scratchpad_state == SCRATCHPAD_FRESH)
         con->scratchpad_state = SCRATCHPAD_CHANGED;
 
-    /* Workspace change will already result in a tree_render. */
-    if (!reassigned) {
-        tree_render();
-    }
+    tree_render();
     return true;
 }
 

@@ -160,7 +160,7 @@ void cmd_criteria_init(I3_CMD) {
     }
     TAILQ_INIT(&owindows);
     /* copy all_cons */
-    TAILQ_FOREACH(con, &all_cons, all_cons) {
+    TAILQ_FOREACH (con, &all_cons, all_cons) {
         ow = smalloc(sizeof(owindow));
         ow->con = con;
         TAILQ_INSERT_TAIL(&owindows, ow, owindows);
@@ -210,7 +210,7 @@ void cmd_criteria_match_windows(I3_CMD) {
             bool matched_by_mark = false;
 
             mark_t *mark;
-            TAILQ_FOREACH(mark, &(current->con->marks_head), marks) {
+            TAILQ_FOREACH (mark, &(current->con->marks_head), marks) {
                 if (!regex_matches(current_match->mark, mark->name))
                     continue;
 
@@ -245,7 +245,7 @@ void cmd_criteria_match_windows(I3_CMD) {
         }
     }
 
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         DLOG("matching: %p / %s\n", current->con, current->con->name);
     }
 }
@@ -261,7 +261,7 @@ void cmd_criteria_add(I3_CMD, const char *ctype, const char *cvalue) {
 
 static void move_matches_to_workspace(Con *ws) {
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         DLOG("matching: %p / %s\n", current->con, current->con->name);
         con_move_to_workspace(current->con, ws, true, false, false);
     }
@@ -524,7 +524,7 @@ static bool cmd_resize_tiling_width_height(I3_CMD, Con *current, const char *dir
 
     /* Ensure all the other children have a percentage set. */
     Con *child;
-    TAILQ_FOREACH(child, &(current->parent->nodes_head), nodes) {
+    TAILQ_FOREACH (child, &(current->parent->nodes_head), nodes) {
         LOG("child->percent = %f (child %p)\n", child->percent, child);
         if (child->percent == 0.0)
             child->percent = percentage;
@@ -549,7 +549,7 @@ static bool cmd_resize_tiling_width_height(I3_CMD, Con *current, const char *dir
     LOG("subtract_percent = %f\n", subtract_percent);
     /* Ensure that the new percentages are positive. */
     if (subtract_percent >= 0.0) {
-        TAILQ_FOREACH(child, &(current->parent->nodes_head), nodes) {
+        TAILQ_FOREACH (child, &(current->parent->nodes_head), nodes) {
             if (child == current) {
                 continue;
             }
@@ -563,7 +563,7 @@ static bool cmd_resize_tiling_width_height(I3_CMD, Con *current, const char *dir
     current->percent = new_current_percent;
     LOG("current->percent after = %f\n", current->percent);
 
-    TAILQ_FOREACH(child, &(current->parent->nodes_head), nodes) {
+    TAILQ_FOREACH (child, &(current->parent->nodes_head), nodes) {
         if (child == current)
             continue;
         child->percent -= subtract_percent;
@@ -587,7 +587,7 @@ void cmd_resize(I3_CMD, const char *way, const char *direction, long resize_px, 
     HANDLE_EMPTY_MATCH;
 
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         /* Don't handle dock windows (issue #1201) */
         if (current->con->window && current->con->window->dock) {
             DLOG("This is a dock window. Not resizing (con = %p)\n)", current->con);
@@ -667,7 +667,7 @@ void cmd_resize_set(I3_CMD, long cwidth, const char *mode_width, long cheight, c
 
     owindow *current;
     bool success = true;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         Con *floating_con;
         if ((floating_con = con_inside_floating(current->con))) {
             Con *output = con_get_output(floating_con);
@@ -735,7 +735,7 @@ void cmd_border(I3_CMD, const char *border_style_str, long border_width) {
 
     HANDLE_EMPTY_MATCH;
 
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         DLOG("matching: %p / %s\n", current->con, current->con->name);
 
         border_style_t border_style;
@@ -766,7 +766,7 @@ void cmd_border(I3_CMD, const char *border_style_str, long border_width) {
  */
 void cmd_nop(I3_CMD, const char *comment) {
     LOG("-------------------------------------------------\n");
-    LOG("  NOP: %s\n", comment);
+    LOG("  NOP: %.4000s\n", comment);
     LOG("-------------------------------------------------\n");
     ysuccess(true);
 }
@@ -1006,7 +1006,7 @@ void cmd_unmark(I3_CMD, const char *mark) {
         con_unmark(NULL, mark);
     } else {
         owindow *current;
-        TAILQ_FOREACH(current, &owindows, owindows) {
+        TAILQ_FOREACH (current, &owindows, owindows) {
             con_unmark(current->con, mark);
         }
     }
@@ -1038,7 +1038,7 @@ void cmd_move_con_to_output(I3_CMD, const char *name) {
 
     owindow *current;
     bool had_error = false;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         DLOG("matching: %p / %s\n", current->con, current->con->name);
 
         had_error |= !con_move_to_output_name(current->con, name, true);
@@ -1059,7 +1059,7 @@ void cmd_move_con_to_mark(I3_CMD, const char *mark) {
 
     bool result = true;
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         DLOG("moving matched window %p / %s to mark \"%s\"\n", current->con, current->con->name, mark);
         result &= con_move_to_mark(current->con, mark);
     }
@@ -1079,7 +1079,7 @@ void cmd_floating(I3_CMD, const char *floating_mode) {
 
     HANDLE_EMPTY_MATCH;
 
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         DLOG("matching: %p / %s\n", current->con, current->con->name);
         if (strcmp(floating_mode, "toggle") == 0) {
             DLOG("should toggle mode\n");
@@ -1109,7 +1109,7 @@ void cmd_move_workspace_to_output(I3_CMD, const char *name) {
     HANDLE_EMPTY_MATCH;
 
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         Con *ws = con_get_workspace(current->con);
         if (con_is_internal(ws)) {
             continue;
@@ -1138,7 +1138,7 @@ void cmd_split(I3_CMD, const char *direction) {
 
     owindow *current;
     LOG("splitting in direction %c\n", direction[0]);
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         if (con_is_docked(current->con)) {
             ELOG("Cannot split a docked container, skipping.\n");
             continue;
@@ -1191,7 +1191,7 @@ void cmd_kill(I3_CMD, const char *kill_mode_str) {
     HANDLE_EMPTY_MATCH;
 
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         con_close(current->con, kill_mode);
     }
 
@@ -1207,8 +1207,24 @@ void cmd_kill(I3_CMD, const char *kill_mode_str) {
 void cmd_exec(I3_CMD, const char *nosn, const char *command) {
     bool no_startup_id = (nosn != NULL);
 
-    DLOG("should execute %s, no_startup_id = %d\n", command, no_startup_id);
-    start_application(command, no_startup_id);
+    HANDLE_EMPTY_MATCH;
+
+    int count = 0;
+    owindow *current;
+    TAILQ_FOREACH (current, &owindows, owindows) {
+        count++;
+    }
+
+    if (count > 1) {
+        LOG("WARNING: Your criteria for the exec command match %d containers, "
+            "so the command will execute this many times.\n",
+            count);
+    }
+
+    TAILQ_FOREACH (current, &owindows, owindows) {
+        DLOG("should execute %s, no_startup_id = %d\n", command, no_startup_id);
+        start_application(command, no_startup_id);
+    }
 
     ysuccess(true);
 }
@@ -1217,7 +1233,7 @@ void cmd_exec(I3_CMD, const char *nosn, const char *command) {
     do {                                                                               \
         int count = 0;                                                                 \
         owindow *current;                                                              \
-        TAILQ_FOREACH(current, &owindows, owindows) {                                  \
+        TAILQ_FOREACH (current, &owindows, owindows) {                                 \
             count++;                                                                   \
         }                                                                              \
                                                                                        \
@@ -1249,7 +1265,7 @@ void cmd_focus_direction(I3_CMD, const char *direction_str) {
     }
 
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         Con *ws = con_get_workspace(current->con);
         if (!ws || con_is_internal(ws)) {
             continue;
@@ -1276,14 +1292,23 @@ void cmd_focus_sibling(I3_CMD, const char *direction_str) {
 
     const position_t direction = (STARTS_WITH(direction_str, "prev")) ? BEFORE : AFTER;
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         Con *ws = con_get_workspace(current->con);
         if (!ws || con_is_internal(ws)) {
             continue;
         }
         Con *next = get_tree_next_sibling(current->con, direction);
         if (next) {
-            con_activate(next);
+            if (next->type == CT_WORKSPACE) {
+                /* On the workspace level, we need to make sure that the
+                 * workspace change happens properly. However, workspace_show
+                 * descends focus so we also have to put focus on the workspace
+                 * itself to maintain consistency. See #3997. */
+                workspace_show(next);
+                con_focus(next);
+            } else {
+                con_activate(next);
+            }
         }
     }
 
@@ -1311,7 +1336,7 @@ void cmd_focus_window_mode(I3_CMD, const char *window_mode) {
     Con *ws = con_get_workspace(focused);
     Con *current;
     bool success = false;
-    TAILQ_FOREACH(current, &(ws->focus_head), focused) {
+    TAILQ_FOREACH (current, &(ws->focus_head), focused) {
         if ((to_floating && current->type != CT_FLOATING_CON) ||
             (!to_floating && current->type == CT_FLOATING_CON))
             continue;
@@ -1379,7 +1404,7 @@ void cmd_focus(I3_CMD) {
 
     Con *__i3_scratch = workspace_get("__i3_scratch", NULL);
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         Con *ws = con_get_workspace(current->con);
         /* If no workspace could be found, this was a dock window.
          * Just skip it, you cannot focus dock windows. */
@@ -1415,7 +1440,7 @@ void cmd_fullscreen(I3_CMD, const char *action, const char *fullscreen_mode) {
 
     HANDLE_EMPTY_MATCH;
 
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         DLOG("matching: %p / %s\n", current->con, current->con->name);
         if (strcmp(action, "toggle") == 0) {
             con_toggle_fullscreen(current->con, mode);
@@ -1440,7 +1465,7 @@ void cmd_sticky(I3_CMD, const char *action) {
     HANDLE_EMPTY_MATCH;
 
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         if (current->con->window == NULL) {
             ELOG("only containers holding a window can be made sticky, skipping con = %p\n", current->con);
             continue;
@@ -1480,7 +1505,7 @@ void cmd_move_direction(I3_CMD, const char *direction_str, long move_px) {
     Con *initially_focused = focused;
     direction_t direction = parse_direction(direction_str);
 
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         DLOG("moving in direction %s, px %ld\n", direction_str, move_px);
         if (con_is_floating(current->con)) {
             DLOG("floating move with %ld pixels\n", move_px);
@@ -1501,7 +1526,7 @@ void cmd_move_direction(I3_CMD, const char *direction_str, long move_px) {
                     break;
             }
 
-            floating_reposition(current->con->parent, newrect);
+            cmd_output->needs_tree_render = floating_reposition(current->con->parent, newrect);
         } else {
             tree_move(current->con, direction);
             cmd_output->needs_tree_render = true;
@@ -1534,7 +1559,7 @@ void cmd_layout(I3_CMD, const char *layout_str) {
     DLOG("changing layout to %s (%d)\n", layout_str, layout);
 
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         if (con_is_docked(current->con)) {
             ELOG("cannot change layout of a docked container, skipping it.\n");
             continue;
@@ -1565,7 +1590,7 @@ void cmd_layout_toggle(I3_CMD, const char *toggle_mode) {
     if (match_is_empty(current_match))
         con_toggle_layout(focused, toggle_mode);
     else {
-        TAILQ_FOREACH(current, &owindows, owindows) {
+        TAILQ_FOREACH (current, &owindows, owindows) {
             DLOG("matching: %p / %s\n", current->con, current->con->name);
             con_toggle_layout(current->con, toggle_mode);
         }
@@ -1582,7 +1607,7 @@ void cmd_layout_toggle(I3_CMD, const char *toggle_mode) {
  */
 void cmd_exit(I3_CMD) {
     LOG("Exiting due to user command.\n");
-    exit(0);
+    exit(EXIT_SUCCESS);
 
     /* unreached */
 }
@@ -1699,7 +1724,7 @@ void cmd_move_window_to_position(I3_CMD, long x, long y) {
     owindow *current;
     HANDLE_EMPTY_MATCH;
 
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         if (!con_is_floating(current->con)) {
             ELOG("Cannot change position. The window/container is not floating\n");
 
@@ -1736,7 +1761,7 @@ void cmd_move_window_to_center(I3_CMD, const char *method) {
     HANDLE_EMPTY_MATCH;
 
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         Con *floating_con = con_inside_floating(current->con);
         if (floating_con == NULL) {
             ELOG("con %p / %s is not floating, cannot move it to the center.\n",
@@ -1779,7 +1804,7 @@ void cmd_move_window_to_mouse(I3_CMD) {
     HANDLE_EMPTY_MATCH;
 
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         Con *floating_con = con_inside_floating(current->con);
         if (floating_con == NULL) {
             DLOG("con %p / %s is not floating, cannot move it to the mouse position.\n",
@@ -1805,7 +1830,7 @@ void cmd_move_scratchpad(I3_CMD) {
 
     HANDLE_EMPTY_MATCH;
 
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         DLOG("matching: %p / %s\n", current->con, current->con->name);
         scratchpad_move(current->con);
     }
@@ -1827,7 +1852,7 @@ void cmd_scratchpad_show(I3_CMD) {
     if (match_is_empty(current_match)) {
         result = scratchpad_show(NULL);
     } else {
-        TAILQ_FOREACH(current, &owindows, owindows) {
+        TAILQ_FOREACH (current, &owindows, owindows) {
             DLOG("matching: %p / %s\n", current->con, current->con->name);
             result |= scratchpad_show(current->con);
         }
@@ -1905,7 +1930,7 @@ void cmd_title_format(I3_CMD, const char *format) {
     HANDLE_EMPTY_MATCH;
 
     owindow *current;
-    TAILQ_FOREACH(current, &owindows, owindows) {
+    TAILQ_FOREACH (current, &owindows, owindows) {
         DLOG("setting title_format for %p / %s\n", current->con, current->con->name);
         FREE(current->con->title_format);
 
@@ -1995,7 +2020,7 @@ void cmd_rename_workspace(I3_CMD, const char *old_name, const char *new_name) {
 
     /* Move the workspace to the correct output if it has an assignment */
     struct Workspace_Assignment *assignment = NULL;
-    TAILQ_FOREACH(assignment, &ws_assignments, ws_assignments) {
+    TAILQ_FOREACH (assignment, &ws_assignments, ws_assignments) {
         if (assignment->output == NULL)
             continue;
         if (strcmp(assignment->name, workspace->name) != 0 && (!name_is_digits(assignment->name) || ws_name_to_number(assignment->name) != workspace->num)) {
@@ -2071,7 +2096,7 @@ static bool cmd_bar_mode(const char *bar_mode, const char *bar_id) {
 
     bool changed_sth = false;
     Barconfig *current = NULL;
-    TAILQ_FOREACH(current, &barconfigs, configs) {
+    TAILQ_FOREACH (current, &barconfigs, configs) {
         if (bar_id && strcmp(current->id, bar_id) != 0)
             continue;
 
@@ -2114,7 +2139,7 @@ static bool cmd_bar_hidden_state(const char *bar_hidden_state, const char *bar_i
 
     bool changed_sth = false;
     Barconfig *current = NULL;
-    TAILQ_FOREACH(current, &barconfigs, configs) {
+    TAILQ_FOREACH (current, &barconfigs, configs) {
         if (bar_id && strcmp(current->id, bar_id) != 0)
             continue;
 
@@ -2219,48 +2244,48 @@ void cmd_gaps(I3_CMD, const char *type, const char *scope, const char *mode, con
     int pixels = logical_px(atoi(value));
     Con *workspace = con_get_workspace(focused);
 
-#define CMD_GAPS(type)                                                 \
-    do {                                                               \
-        int current_value = config.gaps.type;                          \
-        if (strcmp(scope, "current") == 0)                             \
-            current_value += workspace->gaps.type;                     \
-                                                                       \
-        bool reset = false;                                            \
-        if (!strcmp(mode, "plus"))                                     \
-            current_value += pixels;                                   \
-        else if (!strcmp(mode, "minus"))                               \
-            current_value -= pixels;                                   \
-        else if (!strcmp(mode, "set")) {                               \
-            current_value = pixels;                                    \
-            reset = true;                                              \
-        } else if (!strcmp(mode, "toggle")) {                          \
-            current_value = !current_value * pixels;                   \
-            reset = true;                                              \
-        } else {                                                       \
-            ELOG("Invalid mode %s when changing gaps", mode);          \
-            ysuccess(false);                                           \
-            return;                                                    \
-        }                                                              \
-                                                                       \
-        if (current_value < 0)                                         \
-            current_value = 0;                                         \
-                                                                       \
-        if (!strcmp(scope, "all")) {                                   \
-            Con *output, *cur_ws = NULL;                               \
-            TAILQ_FOREACH(output, &(croot->nodes_head), nodes) {       \
-                Con *content = output_get_content(output);             \
-                TAILQ_FOREACH(cur_ws, &(content->nodes_head), nodes) { \
-                    if (reset)                                         \
-                        cur_ws->gaps.type = 0;                         \
-                    else if (current_value + cur_ws->gaps.type < 0)    \
-                        cur_ws->gaps.type = -current_value;            \
-                }                                                      \
-            }                                                          \
-                                                                       \
-            config.gaps.type = current_value;                          \
-        } else {                                                       \
-            workspace->gaps.type = current_value - config.gaps.type;   \
-        }                                                              \
+#define CMD_GAPS(type)                                                  \
+    do {                                                                \
+        int current_value = config.gaps.type;                           \
+        if (strcmp(scope, "current") == 0)                              \
+            current_value += workspace->gaps.type;                      \
+                                                                        \
+        bool reset = false;                                             \
+        if (!strcmp(mode, "plus"))                                      \
+            current_value += pixels;                                    \
+        else if (!strcmp(mode, "minus"))                                \
+            current_value -= pixels;                                    \
+        else if (!strcmp(mode, "set")) {                                \
+            current_value = pixels;                                     \
+            reset = true;                                               \
+        } else if (!strcmp(mode, "toggle")) {                           \
+            current_value = !current_value * pixels;                    \
+            reset = true;                                               \
+        } else {                                                        \
+            ELOG("Invalid mode %s when changing gaps", mode);           \
+            ysuccess(false);                                            \
+            return;                                                     \
+        }                                                               \
+                                                                        \
+        if (current_value < 0)                                          \
+            current_value = 0;                                          \
+                                                                        \
+        if (!strcmp(scope, "all")) {                                    \
+            Con *output, *cur_ws = NULL;                                \
+            TAILQ_FOREACH (output, &(croot->nodes_head), nodes) {       \
+                Con *content = output_get_content(output);              \
+                TAILQ_FOREACH (cur_ws, &(content->nodes_head), nodes) { \
+                    if (reset)                                          \
+                        cur_ws->gaps.type = 0;                          \
+                    else if (current_value + cur_ws->gaps.type < 0)     \
+                        cur_ws->gaps.type = -current_value;             \
+                }                                                       \
+            }                                                           \
+                                                                        \
+            config.gaps.type = current_value;                           \
+        } else {                                                        \
+            workspace->gaps.type = current_value - config.gaps.type;    \
+        }                                                               \
     } while (0)
 
     if (!strcmp(type, "inner")) {

@@ -35,6 +35,14 @@ dist_i3conf_DATA = \
 	etc/config \
 	etc/config.keycodes
 
+I3STATUS_INSTALL_NAME = $(shell echo i3status | sed '@program_transform_name@')
+
+etc/config: etc/$(dirstamp)
+	$(AM_V_GEN) sed "s,status_command i3status,status_command $(I3STATUS_INSTALL_NAME),g" $(top_srcdir)/etc/config > etc/config
+
+etc/config.keycodes: etc/$(dirstamp)
+	$(AM_V_GEN) sed "s,status_command i3status,status_command $(I3STATUS_INSTALL_NAME),g" $(top_srcdir)/etc/config.keycodes > etc/config.keycodes
+
 applicationsdir = $(datarootdir)/applications
 xsessionsdir = $(datarootdir)/xsessions
 dist_applications_DATA = \
@@ -118,7 +126,7 @@ EXTRA_DIST = \
 	I3_VERSION \
 	LICENSE \
 	PACKAGE-MAINTAINER \
-	RELEASE-NOTES-4.17.1 \
+	RELEASE-NOTES-4.18 \
 	generate-command-parser.pl \
 	parser-specs/commands.spec \
 	parser-specs/config.spec \
@@ -146,7 +154,8 @@ dirstamp = .dirstamp
 dirstamps = \
 	docs/$(dirstamp) \
 	man/$(dirstamp) \
-	parser/$(dirstamp)
+	parser/$(dirstamp) \
+	etc/$(dirstamp)
 DISTCLEANFILES = $(dirstamps)
 
 $(dirstamps):
@@ -433,6 +442,9 @@ i3_config_wizard_i3_config_wizard_SOURCES = \
 	i3-config-wizard/main.c \
 	i3-config-wizard/xcb.h
 
+i3_config_wizard_i3_config_wizard_DEPENDENCIES = \
+	$(config_parser_SOURCES)
+
 test_inject_randr15_CPPFLAGS = \
 	$(AM_CPPFLAGS)
 
@@ -617,3 +629,16 @@ CLEANFILES = \
 	i3-command-parser.stamp \
 	i3-config-parser.stamp \
 	anyevent-i3.stamp
+
+################################################################################
+# Language Server support
+################################################################################
+
+# Recursively run make through https://github.com/rizsotto/Bear,
+# which generates a compile_commands.json file in the source directory.
+# This is useful for running e.g. the clangd or ccls language servers:
+# https://clang.llvm.org/extra/clangd/
+# https://github.com/MaskRay/ccls/wiki
+.PHONY: bear
+bear: clean
+	bear -o $(top_srcdir)/compile_commands.json $(MAKE) $(MAKEFLAGS)

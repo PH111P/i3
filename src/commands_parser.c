@@ -106,7 +106,7 @@ static void push_string(const char *identifier, char *str) {
     fprintf(stderr, "BUG: commands_parser stack full. This means either a bug "
                     "in the code, or a new command which contains more than "
                     "10 identified tokens.\n");
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 // TODO move to a common util
@@ -128,7 +128,7 @@ static void push_long(const char *identifier, long num) {
     fprintf(stderr, "BUG: commands_parser stack full. This means either a bug "
                     "in the code, or a new command which contains more than "
                     "10 identified tokens.\n");
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 // TODO move to a common util
@@ -263,7 +263,7 @@ char *parse_string(const char **walk, bool as_word) {
  * Free the returned CommandResult with command_result_free().
  */
 CommandResult *parse_command(const char *input, yajl_gen gen, ipc_client *client) {
-    DLOG("COMMAND: *%s*\n", input);
+    DLOG("COMMAND: *%.4000s*\n", input);
     state = INITIAL;
     CommandResult *result = scalloc(1, sizeof(CommandResult));
 

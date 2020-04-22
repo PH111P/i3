@@ -1005,7 +1005,8 @@ programs to get information from i3, such as the current workspaces
 (to display a workspace bar), and to control i3.
 
 The IPC socket is enabled by default and will be created in
-+/tmp/i3-%u.XXXXXX/ipc-socket.%p+ where +%u+ is your UNIX username, +%p+ is
++$XDG_RUNTIME_DIR/i3/ipc-socket.%p+ if the directory is available, falling back
+to +/tmp/i3-%u.XXXXXX/ipc-socket.%p+, where +%u+ is your UNIX username, +%p+ is
 the PID of i3 and XXXXXX is a string of random characters from the portable
 filename character set (see mkdtemp(3)).
 
@@ -1200,7 +1201,7 @@ force_display_urgency_hint 500 ms
 === Focus on window activation
 
 If a window is activated, e.g., via +google-chrome www.google.com+, it may request
-to take focus. Since this may not preferable, different reactions can be configured.
+to take focus. Since this may not be preferable, different reactions can be configured.
 
 Note that this may not affect windows that are being opened. To prevent new windows
 from being focused, see <<no_focus>>.
@@ -1408,6 +1409,11 @@ button4::
     Scroll wheel up.
 button5::
     Scroll wheel down.
+button6::
+    Scroll wheel right.
+button7::
+    Scroll wheel left.
+    
 
 Please note that the old +wheel_up_cmd+ and +wheel_down_cmd+ commands are deprecated
 and will be removed in a future release. We strongly recommend using the more general
@@ -1911,8 +1917,18 @@ con_id::
 	to match only the currently focused window.
 floating::
 	Only matches floating windows. This criterion requires no value.
+floating_from::
+	Like +floating+ but this criterion takes two possible values: "auto"
+	and "user". With "auto", only windows that were automatically opened as
+	floating are matched. With "user", only windows that the user made
+	floating are matched.
 tiling::
 	Only matches tiling windows. This criterion requires no value.
+tiling_from::
+	Like +tiling+ but this criterion takes two possible values: "auto" and
+	"user". With "auto", only windows that were automatically opened as
+	tiling are matched. With "user", only windows that the user made tiling
+	are matched.
 
 The criteria +class+, +instance+, +role+, +title+, +workspace+ and +mark+ are
 actually regular expressions (PCRE). See +pcresyntax(3)+ or +perldoc perlre+ for
@@ -2002,6 +2018,7 @@ bindsym $mod+h split horizontal
 bindsym $mod+t split toggle
 -------------------------------
 
+[[manipulating_layout]]
 === Manipulating layout
 
 Use +layout toggle split+, +layout stacking+, +layout tabbed+, +layout splitv+

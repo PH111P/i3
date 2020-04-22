@@ -87,11 +87,15 @@ struct assignments_head assignments = TAILQ_HEAD_INITIALIZER(assignments);
 struct ws_assignments_head ws_assignments = TAILQ_HEAD_INITIALIZER(ws_assignments);
 
 /* We hope that those are supported and set them to true */
-bool xcursor_supported = true;
 bool xkb_supported = true;
 bool shape_supported = true;
 
 bool force_xinerama = false;
+
+/* Define all atoms as global variables */
+#define xmacro(atom) xcb_atom_t A_##atom;
+#include "atoms.xmacro"
+#undef xmacro
 
 /*
  * This callback is only a dummy, see xcb_prepare_cb.
@@ -429,12 +433,12 @@ int main(int argc, char *argv[]) {
                                 "\ti3 floating toggle\n"
                                 "\ti3 kill window\n"
                                 "\n");
-                exit(EXIT_FAILURE);
+                exit(opt == 'h' ? EXIT_SUCCESS : EXIT_FAILURE);
         }
     }
 
     if (only_check_config) {
-        exit(load_configuration(override_configpath, C_VALIDATE) ? 0 : 1);
+        exit(load_configuration(override_configpath, C_VALIDATE) ? EXIT_SUCCESS : EXIT_FAILURE);
     }
 
     /* If the user passes more arguments, we act like i3-msg would: Just send
@@ -636,10 +640,7 @@ int main(int argc, char *argv[]) {
 
     /* Set a cursor for the root window (otherwise the root window will show no
        cursor until the first client is launched). */
-    if (xcursor_supported)
-        xcursor_set_root_cursor(XCURSOR_CURSOR_POINTER);
-    else
-        xcb_set_root_cursor(XCURSOR_CURSOR_POINTER);
+    xcursor_set_root_cursor(XCURSOR_CURSOR_POINTER);
 
     const xcb_query_extension_reply_t *extreply;
     xcb_prefetch_extension_data(conn, &xcb_xkb_id);
@@ -780,9 +781,9 @@ int main(int argc, char *argv[]) {
      * and restarting i3. See #2326. */
     if (layout_path != NULL && randr_base > -1) {
         Con *con;
-        TAILQ_FOREACH(con, &(croot->nodes_head), nodes) {
+        TAILQ_FOREACH (con, &(croot->nodes_head), nodes) {
             Output *output;
-            TAILQ_FOREACH(output, &outputs, outputs) {
+            TAILQ_FOREACH (output, &outputs, outputs) {
                 if (output->active || strcmp(con->name, output_primary_name(output)) != 0)
                     continue;
 
@@ -1005,10 +1006,10 @@ int main(int argc, char *argv[]) {
 
     /* Start i3bar processes for all configured bars */
     Barconfig *barconfig;
-    TAILQ_FOREACH(barconfig, &barconfigs, configs) {
+    TAILQ_FOREACH (barconfig, &barconfigs, configs) {
         char *command = NULL;
         sasprintf(&command, "%s %s --bar_id=%s --socket=\"%s\"",
-                  barconfig->i3bar_command ? barconfig->i3bar_command : "i3bar",
+                  barconfig->i3bar_command ? barconfig->i3bar_command : "exec i3bar",
                   barconfig->verbose ? "-V" : "",
                   barconfig->id, current_socketpath);
         LOG("Starting bar process: %s\n", command);
