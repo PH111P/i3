@@ -7,16 +7,19 @@
  * ipc.c: UNIX domain socket IPC (initialization, client handling, protocol).
  *
  */
-#include "all.h"
 
+#include "all.h"
 #include "yajl_utils.h"
 
+#include <ev.h>
+#include <fcntl.h>
+#include <libgen.h>
+#include <locale.h>
 #include <stdint.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <fcntl.h>
-#include <libgen.h>
-#include <ev.h>
+#include <unistd.h>
+
 #include <yajl/yajl_gen.h>
 #include <yajl/yajl_parse.h>
 
@@ -1363,9 +1366,27 @@ IPC_HANDLER(sync) {
     ipc_send_client_message(client, strlen(reply), I3_IPC_REPLY_TYPE_SYNC, (const uint8_t *)reply);
 }
 
+IPC_HANDLER(get_binding_state) {
+    yajl_gen gen = ygenalloc();
+
+    y(map_open);
+
+    ystr("name");
+    ystr(current_binding_mode);
+
+    y(map_close);
+
+    const unsigned char *payload;
+    ylength length;
+    y(get_buf, &payload, &length);
+
+    ipc_send_client_message(client, length, I3_IPC_REPLY_TYPE_GET_BINDING_STATE, payload);
+    y(free);
+}
+
 /* The index of each callback function corresponds to the numeric
  * value of the message type (see include/i3/ipc.h) */
-handler_t handlers[12] = {
+handler_t handlers[13] = {
     handle_run_command,
     handle_get_workspaces,
     handle_subscribe,
@@ -1378,6 +1399,7 @@ handler_t handlers[12] = {
     handle_get_config,
     handle_send_tick,
     handle_sync,
+    handle_get_binding_state,
 };
 
 /*

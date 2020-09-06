@@ -263,7 +263,7 @@ single workspace on which you open three terminal windows. All these terminal
 windows are directly attached to one node inside i3’s layout tree, the
 workspace node. By default, the workspace node’s orientation is +horizontal+.
 
-Now you move one of these terminals down (+$mod+Shift+k+ by default). The
+Now you move one of these terminals down (+$mod+Shift+j+ by default). The
 workspace node’s orientation will be changed to +vertical+. The terminal window
 you moved down is directly attached to the workspace and appears on the bottom
 of the screen. A new (horizontal) container was created to accommodate the
@@ -1350,9 +1350,11 @@ mode). The modifier key can be configured using the +modifier+ option.
 The mode option can be changed during runtime through the +bar mode+ command.
 On reload the mode will be reverted to its configured value.
 
-The hide mode maximizes screen space that can be used for actual windows. Also,
-i3bar sends the +SIGSTOP+ and +SIGCONT+ signals to the statusline process to
-save battery power.
+The hide mode maximizes screen space that can be used for actual windows. When
+the bar is hidden, i3bar sends the +SIGSTOP+ and +SIGCONT+ signals to the
++status_command+ process in order to conserve battery power. This feature can
+be disabled by the +status_command+ process by setting the appropriate values
+in its JSON header message.
 
 Invisible mode allows to permanently maximize screen space, as the bar is never
 shown. Thus, you can configure i3bar to not disturb you by popping up because
@@ -1681,7 +1683,7 @@ the form "[n][:][NAME]" will display only the number.
 
 The default is to display the full name within the workspace button. Be aware
 that the colon in the workspace name is optional, so `[n][NAME]` will also 
-have the the workspace name and number stripped correctly. 
+have the workspace name and number stripped correctly. 
 
 *Syntax*:
 ------------------------------

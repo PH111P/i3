@@ -8,14 +8,11 @@
  *
  */
 #include "all.h"
-
-#include <stdint.h>
-#include <float.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <fcntl.h>
-
 #include "shmlog.h"
+
+#include <fcntl.h>
+#include <stdint.h>
+#include <unistd.h>
 
 // Macros to make the YAJL API a bit easier to use.
 #define y(x, ...) (cmd_output->json_gen != NULL ? yajl_gen_##x(cmd_output->json_gen, ##__VA_ARGS__) : 0)
@@ -1618,14 +1615,25 @@ void cmd_exit(I3_CMD) {
  */
 void cmd_reload(I3_CMD) {
     LOG("reloading\n");
-    kill_nagbar(&config_error_nagbar_pid, false);
-    kill_nagbar(&command_error_nagbar_pid, false);
+
+    kill_nagbar(config_error_nagbar_pid, false);
+    kill_nagbar(command_error_nagbar_pid, false);
+    /* start_nagbar() will refuse to start a new process if the passed pid is
+     * set. This will happen when our child watcher is triggered by libev when
+     * the loop re-starts. However, config errors might be detected before
+     * that since we will read the config right now with load_configuration.
+     * See #4104. */
+    config_error_nagbar_pid = command_error_nagbar_pid = -1;
+
     load_configuration(NULL, C_RELOAD);
     x_set_i3_atoms();
     /* Send an IPC event just in case the ws names have changed */
     ipc_send_workspace_event("reload", NULL, NULL);
-    /* Send an update event for the barconfig just in case it has changed */
-    update_barconfig();
+    /* Send an update event for each barconfig just in case it has changed */
+    Barconfig *current;
+    TAILQ_FOREACH (current, &barconfigs, configs) {
+        ipc_send_barconfig_update_event(current);
+    }
 
     // XXX: default reply for now, make this a better reply
     ysuccess(true);
@@ -2078,7 +2086,7 @@ void cmd_rename_workspace(I3_CMD, const char *old_name, const char *new_name) {
  * Implementation of 'bar mode dock|hide|invisible|toggle [<bar_id>]'
  *
  */
-static bool cmd_bar_mode(const char *bar_mode, const char *bar_id) {
+void cmd_bar_mode(I3_CMD, const char *bar_mode, const char *bar_id) {
     int mode = M_DOCK;
     bool toggle = false;
     if (strcmp(bar_mode, "dock") == 0)
@@ -2091,39 +2099,53 @@ static bool cmd_bar_mode(const char *bar_mode, const char *bar_id) {
         toggle = true;
     else {
         ELOG("Unknown bar mode \"%s\", this is a mismatch between code and parser spec.\n", bar_mode);
-        return false;
+        assert(false);
     }
 
-    bool changed_sth = false;
+    if (TAILQ_EMPTY(&barconfigs)) {
+        yerror("No bars found\n");
+        return;
+    }
+
     Barconfig *current = NULL;
     TAILQ_FOREACH (current, &barconfigs, configs) {
-        if (bar_id && strcmp(current->id, bar_id) != 0)
+        if (bar_id && strcmp(current->id, bar_id) != 0) {
             continue;
+        }
 
-        if (toggle)
+        if (toggle) {
             mode = (current->mode + 1) % 2;
+        }
 
-        DLOG("Changing bar mode of bar_id '%s' to '%s (%d)'\n", current->id, bar_mode, mode);
-        current->mode = mode;
-        changed_sth = true;
+        DLOG("Changing bar mode of bar_id '%s' from '%d' to '%s (%d)'\n",
+             current->id, current->mode, bar_mode, mode);
+        if ((int)current->mode != mode) {
+            current->mode = mode;
+            ipc_send_barconfig_update_event(current);
+        }
 
-        if (bar_id)
-            break;
+        if (bar_id) {
+            /* We are looking for a specific bar and we found it */
+            ysuccess(true);
+            return;
+        }
     }
 
-    if (bar_id && !changed_sth) {
-        DLOG("Changing bar mode of bar_id %s failed, bar_id not found.\n", bar_id);
-        return false;
+    if (bar_id) {
+        /* We are looking for a specific bar and we did not find it */
+        yerror("Changing bar mode of bar_id %s failed, bar_id not found.\n", bar_id);
+    } else {
+        /* We have already handled the case of no bars, so we must have
+         * updated all active bars now. */
+        ysuccess(true);
     }
-
-    return true;
 }
 
 /*
  * Implementation of 'bar hidden_state hide|show|toggle [<bar_id>]'
  *
  */
-static bool cmd_bar_hidden_state(const char *bar_hidden_state, const char *bar_id) {
+void cmd_bar_hidden_state(I3_CMD, const char *bar_hidden_state, const char *bar_id) {
     int hidden_state = S_SHOW;
     bool toggle = false;
     if (strcmp(bar_hidden_state, "hide") == 0)
@@ -2134,54 +2156,46 @@ static bool cmd_bar_hidden_state(const char *bar_hidden_state, const char *bar_i
         toggle = true;
     else {
         ELOG("Unknown bar state \"%s\", this is a mismatch between code and parser spec.\n", bar_hidden_state);
-        return false;
+        assert(false);
     }
 
-    bool changed_sth = false;
+    if (TAILQ_EMPTY(&barconfigs)) {
+        yerror("No bars found\n");
+        return;
+    }
+
     Barconfig *current = NULL;
     TAILQ_FOREACH (current, &barconfigs, configs) {
-        if (bar_id && strcmp(current->id, bar_id) != 0)
+        if (bar_id && strcmp(current->id, bar_id) != 0) {
             continue;
+        }
 
-        if (toggle)
+        if (toggle) {
             hidden_state = (current->hidden_state + 1) % 2;
+        }
 
-        DLOG("Changing bar hidden_state of bar_id '%s' to '%s (%d)'\n", current->id, bar_hidden_state, hidden_state);
-        current->hidden_state = hidden_state;
-        changed_sth = true;
+        DLOG("Changing bar hidden_state of bar_id '%s' from '%d' to '%s (%d)'\n",
+             current->id, current->hidden_state, bar_hidden_state, hidden_state);
+        if ((int)current->hidden_state != hidden_state) {
+            current->hidden_state = hidden_state;
+            ipc_send_barconfig_update_event(current);
+        }
 
-        if (bar_id)
-            break;
+        if (bar_id) {
+            /* We are looking for a specific bar and we found it */
+            ysuccess(true);
+            return;
+        }
     }
 
-    if (bar_id && !changed_sth) {
-        DLOG("Changing bar hidden_state of bar_id %s failed, bar_id not found.\n", bar_id);
-        return false;
+    if (bar_id) {
+        /* We are looking for a specific bar and we did not find it */
+        yerror("Changing bar hidden_state of bar_id %s failed, bar_id not found.\n", bar_id);
+    } else {
+        /* We have already handled the case of no bars, so we must have
+         * updated all active bars now. */
+        ysuccess(true);
     }
-
-    return true;
-}
-
-/*
- * Implementation of 'bar (hidden_state hide|show|toggle)|(mode dock|hide|invisible|toggle) [<bar_id>]'
- *
- */
-void cmd_bar(I3_CMD, const char *bar_type, const char *bar_value, const char *bar_id) {
-    bool ret;
-    if (strcmp(bar_type, "mode") == 0)
-        ret = cmd_bar_mode(bar_value, bar_id);
-    else if (strcmp(bar_type, "hidden_state") == 0)
-        ret = cmd_bar_hidden_state(bar_value, bar_id);
-    else {
-        ELOG("Unknown bar option type \"%s\", this is a mismatch between code and parser spec.\n", bar_type);
-        ret = false;
-    }
-
-    ysuccess(ret);
-    if (!ret)
-        return;
-
-    update_barconfig();
 }
 
 /*
@@ -2244,32 +2258,8 @@ void cmd_gaps(I3_CMD, const char *type, const char *scope, const char *mode, con
     int pixels = logical_px(atoi(value));
     Con *workspace = con_get_workspace(focused);
 
-#define CMD_GAPS(type)                                                  \
+#define CMD_SET_GAPS_VALUE(type, value, reset)                          \
     do {                                                                \
-        int current_value = config.gaps.type;                           \
-        if (strcmp(scope, "current") == 0)                              \
-            current_value += workspace->gaps.type;                      \
-                                                                        \
-        bool reset = false;                                             \
-        if (!strcmp(mode, "plus"))                                      \
-            current_value += pixels;                                    \
-        else if (!strcmp(mode, "minus"))                                \
-            current_value -= pixels;                                    \
-        else if (!strcmp(mode, "set")) {                                \
-            current_value = pixels;                                     \
-            reset = true;                                               \
-        } else if (!strcmp(mode, "toggle")) {                           \
-            current_value = !current_value * pixels;                    \
-            reset = true;                                               \
-        } else {                                                        \
-            ELOG("Invalid mode %s when changing gaps", mode);           \
-            ysuccess(false);                                            \
-            return;                                                     \
-        }                                                               \
-                                                                        \
-        if (current_value < 0)                                          \
-            current_value = 0;                                          \
-                                                                        \
         if (!strcmp(scope, "all")) {                                    \
             Con *output, *cur_ws = NULL;                                \
             TAILQ_FOREACH (output, &(croot->nodes_head), nodes) {       \
@@ -2277,19 +2267,71 @@ void cmd_gaps(I3_CMD, const char *type, const char *scope, const char *mode, con
                 TAILQ_FOREACH (cur_ws, &(content->nodes_head), nodes) { \
                     if (reset)                                          \
                         cur_ws->gaps.type = 0;                          \
-                    else if (current_value + cur_ws->gaps.type < 0)     \
-                        cur_ws->gaps.type = -current_value;             \
+                    else if (value + cur_ws->gaps.type < 0)             \
+                        cur_ws->gaps.type = -value;                     \
                 }                                                       \
             }                                                           \
                                                                         \
-            config.gaps.type = current_value;                           \
+            config.gaps.type = value;                                   \
         } else {                                                        \
-            workspace->gaps.type = current_value - config.gaps.type;    \
+            workspace->gaps.type = value - config.gaps.type;            \
         }                                                               \
+    } while (0)
+
+#define CMD_GAPS(type)                                                                                          \
+    do {                                                                                                        \
+        int current_value = config.gaps.type;                                                                   \
+        if (strcmp(scope, "current") == 0)                                                                      \
+            current_value += workspace->gaps.type;                                                              \
+                                                                                                                \
+        bool reset = false;                                                                                     \
+        if (!strcmp(mode, "plus"))                                                                              \
+            current_value += pixels;                                                                            \
+        else if (!strcmp(mode, "minus"))                                                                        \
+            current_value -= pixels;                                                                            \
+        else if (!strcmp(mode, "set")) {                                                                        \
+            current_value = pixels;                                                                             \
+            reset = true;                                                                                       \
+        } else if (!strcmp(mode, "toggle")) {                                                                   \
+            current_value = !current_value * pixels;                                                            \
+            reset = true;                                                                                       \
+        } else {                                                                                                \
+            ELOG("Invalid mode %s when changing gaps", mode);                                                   \
+            ysuccess(false);                                                                                    \
+            return;                                                                                             \
+        }                                                                                                       \
+                                                                                                                \
+        /* see issue 262 */                                                                                     \
+        int min_value = 0;                                                                                      \
+        if (strcmp(#type, "inner") != 0) {                                                                      \
+            min_value = strcmp(scope, "all") ? -config.gaps.inner - workspace->gaps.inner : -config.gaps.inner; \
+        }                                                                                                       \
+                                                                                                                \
+        if (current_value < min_value)                                                                          \
+            current_value = min_value;                                                                          \
+                                                                                                                \
+        CMD_SET_GAPS_VALUE(type, current_value, reset);                                                         \
+    } while (0)
+
+#define CMD_UPDATE_GAPS(type)                                                                              \
+    do {                                                                                                   \
+        if (!strcmp(scope, "all")) {                                                                       \
+            if (config.gaps.type + config.gaps.inner < 0)                                                  \
+                CMD_SET_GAPS_VALUE(type, -config.gaps.inner, true);                                        \
+        } else {                                                                                           \
+            if (config.gaps.type + workspace->gaps.type + config.gaps.inner + workspace->gaps.inner < 0) { \
+                CMD_SET_GAPS_VALUE(type, -config.gaps.inner - workspace->gaps.inner, true);                \
+            }                                                                                              \
+        }                                                                                                  \
     } while (0)
 
     if (!strcmp(type, "inner")) {
         CMD_GAPS(inner);
+        // update inconsistent values
+        CMD_UPDATE_GAPS(top);
+        CMD_UPDATE_GAPS(bottom);
+        CMD_UPDATE_GAPS(right);
+        CMD_UPDATE_GAPS(left);
     } else if (!strcmp(type, "outer")) {
         CMD_GAPS(top);
         CMD_GAPS(bottom);

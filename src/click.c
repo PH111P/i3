@@ -10,11 +10,6 @@
 #include "all.h"
 
 #include <time.h>
-#include <math.h>
-
-#include <xcb/xcb_icccm.h>
-
-#include <X11/XKBlib.h>
 
 typedef enum { CLICK_BORDER = 0,
                CLICK_DECORATION = 1,
@@ -277,14 +272,18 @@ static void route_click(Con *con, xcb_button_press_event_t *event, const bool mo
 
     /* 7: floating modifier pressed, initiate a resize */
     if (dest == CLICK_INSIDE && mod_pressed && is_right_click) {
-        floating_mod_on_tiled_client(con, event);
+        if (floating_mod_on_tiled_client(con, event)) {
+            return;
+        }
         /* Avoid propagating events to clients, since the user expects
-         * $mod + click to be handled by i3. */
+         * $mod+click to be handled by i3. */
+        xcb_allow_events(conn, XCB_ALLOW_ASYNC_POINTER, event->time);
+        xcb_flush(conn);
         return;
     }
     /* 8: otherwise, check for border/decoration clicks and resize */
-    else if ((dest == CLICK_BORDER || dest == CLICK_DECORATION) &&
-             is_left_or_right_click) {
+    if ((dest == CLICK_BORDER || dest == CLICK_DECORATION) &&
+        is_left_or_right_click) {
         DLOG("Trying to resize (tiling)\n");
         tiling_resize(con, event, dest, dest == CLICK_DECORATION && !was_focused);
     }

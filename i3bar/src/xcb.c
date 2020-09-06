@@ -9,26 +9,15 @@
  */
 #include "common.h"
 
-#include <xcb/xcb.h>
-#include <xcb/xkb.h>
-#include <xcb/xproto.h>
+#include <err.h>
+#include <ev.h>
+#include <i3/ipc.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include <xcb/xcb_aux.h>
 #include <xcb/xcb_cursor.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <i3/ipc.h>
-#include <ev.h>
-#include <errno.h>
-#include <limits.h>
-#include <err.h>
-
-#include <X11/Xlib.h>
-#include <X11/XKBlib.h>
-#include <X11/extensions/XKB.h>
+#include <xcb/xkb.h>
 
 #ifdef I3_ASAN_ENABLED
 #include <sanitizer/lsan_interface.h>
@@ -1628,15 +1617,18 @@ void kick_tray_clients(i3_output *output) {
  *
  */
 void destroy_window(i3_output *output) {
-    if (output == NULL) {
-        return;
-    }
-    if (output->bar.id == XCB_NONE) {
+    if (output == NULL || output->bar.id == XCB_NONE) {
         return;
     }
 
     kick_tray_clients(output);
+
+    draw_util_surface_free(xcb_connection, &(output->bar));
+    draw_util_surface_free(xcb_connection, &(output->buffer));
+    draw_util_surface_free(xcb_connection, &(output->statusline_buffer));
     xcb_destroy_window(xcb_connection, output->bar.id);
+    xcb_free_pixmap(xcb_connection, output->buffer.id);
+    xcb_free_pixmap(xcb_connection, output->statusline_buffer.id);
     output->bar.id = XCB_NONE;
 }
 
